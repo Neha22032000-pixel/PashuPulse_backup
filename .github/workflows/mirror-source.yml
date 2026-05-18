@@ -1,0 +1,54 @@
+name: Mirror PashuPulse Source
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout backup repository
+        uses: actions/checkout@v4
+        with:
+          path: backup
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Checkout source repository
+        uses: actions/checkout@v4
+        with:
+          repository: Neha22032000-pixel/PashuPulse
+          ref: main
+          path: source
+          fetch-depth: 1
+
+      - name: Replace backup contents with source contents
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s dotglob
+          cd backup
+          find . -mindepth 1 -maxdepth 1 ! -name .git -exec rm -rf {} +
+          cp -a ../source/. .
+          rm -rf .git
+          git status --short
+
+      - name: Commit and push mirror
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd backup
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "Backup already matches source."
+            exit 0
+          fi
+          git add -A
+          git commit -m "Mirror PashuPulse source repository"
+          git push origin HEAD:main
